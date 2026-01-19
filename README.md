@@ -7,7 +7,9 @@ This project implements a simple API that predicts property prices in Mumbai bas
 # A Quick Note on the Data
 I noticed a small difference between the assignment description and the provided data. The PDF mentioned inputs like `bedrooms` and `furnishing`, but the dataset (`Assignment Data Scientist(in).csv`) actually contained **aggregated price trends** (Price per Sq. Ft.) for each locality, rather than individual apartment listings.
 
-To work around this, I built a **Minimal ML Model (Linear Regression)**. The model uses `OneHotEncoder` to learn the price coefficients for each locality from the historical data (Price per Sq. Ft.) and estimates the total price based on the square footage you provide.
+To work around this, I built a **Minimal ML Model (Linear Regression)**. The model uses `OneHotEncoder` to learn the price coefficients for each locality.
+
+**Validation**: I implemented a proper **80/20 Train-Test split** to evaluate the model on unseen data, ensuring the results are statistically valid and not just memorized!
 
 # Project Structure
 Here's a quick tour of the files:
@@ -49,7 +51,8 @@ json
     "predicted_price": 26262285.71,
     "currency": "INR",
     "price_per_sqft_used": 26262.29,
-    "note": "Price estimated using average rates for this locality."
+    "locality_used": "andheri west",
+    "note": "Price predicted using Linear Regression model on recent market trends."
 }
 
 Note: The API accepts fields like bedrooms/bathrooms to match the assignment requirements, but currently uses Locality and Area for the calculation.
