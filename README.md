@@ -7,14 +7,14 @@ This project implements a simple API that predicts property prices in Mumbai bas
 # A Quick Note on the Data
 I noticed a small difference between the assignment description and the provided data. The PDF mentioned inputs like `bedrooms` and `furnishing`, but the dataset (`Assignment Data Scientist(in).csv`) actually contained **aggregated price trends** (Price per Sq. Ft.) for each locality, rather than individual apartment listings.
 
-To work around this, I built a **Locality-Based Estimator**. The model looks at the average rate per sq. ft. for a specific area (like "Andheri West") and estimates the total price based on the square footage you provide.
+To work around this, I built a **Minimal ML Model (Linear Regression)**. The model uses `OneHotEncoder` to learn the price coefficients for each locality from the historical data (Price per Sq. Ft.) and estimates the total price based on the square footage you provide.
 
 # Project Structure
 Here's a quick tour of the files:
-- `eda_and_model.ipynb`: The Jupyter Notebook where I explored the data, cleaned it, and built the pricing logic.
-- `main.py`: The code for the API (built with FastAPI). It handles the requests and gives you the price.
+- `eda_and_model.ipynb`: The Jupyter Notebook with **EDA (outliers, missing values)** and the **Linear Regression** training logic.
+- `main.py`: The code for the API (built with FastAPI). It loads the trained `scikit-learn` pipeline.
 - `train_model.py`: A script version of the notebook. You can run this to re-train the model anytime.
-- `locality_price_model.pkl`: The saved "brain" of the model (a rate card of localities).
+- `locality_price_model.pkl`: The saved ML pipeline.
 - `requirements.txt`: A list of Python libraries needed to run this.
 
 # How to Run It
