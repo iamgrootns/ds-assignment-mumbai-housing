@@ -1,34 +1,31 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import pickle
 import os
+import pandas as pd
+import numpy as np
 
 # Initialize the API Application
-app = FastAPI(title="Mumbai Property Price Estimator", version="1.0")
+app = FastAPI(title="Mumbai Property Price Estimator", version="2.0")
 
-#Definitions
+# --- Definitions ---
 
-# Define the data we expect from the user
-from pydantic import BaseModel, Field
-
-# Define the data we expect from the user
 class PropertyDetails(BaseModel):
-    locality_name: str
-    area_in_sqft: float = Field(..., gt=0, description="Area must be positive")
-    number_of_bedrooms: int = Field(..., ge=0, description="Cannot have negative bedrooms")
-    number_of_bathrooms: int = Field(..., ge=0, description="Cannot have negative bathrooms")
-    furnishing_status: str
+    locality: str
+    area_sqft: float = Field(..., gt=0, description="Area must be positive")
+    bedrooms: int = Field(..., ge=0, description="Cannot have negative bedrooms")
+    bathrooms: int = Field(..., ge=0, description="Cannot have negative bathrooms")
+    furnishing: str
 
-#Load the Model
+# --- Load the Model ---
 
 model_filename = "locality_price_model.pkl"
-locality_average_prices = {}
+model = None
 
-#Check if the model file exists, then load it
 if os.path.exists(model_filename):
     with open(model_filename, "rb") as file:
-        locality_average_prices = pickle.load(file)
-    print(f"Model loaded successfully. Knowing prices for {len(locality_average_prices)} localities.")
+        model = pickle.load(file)
+    print("ML Model loaded successfully.")
 else:
     print("WARNING: Model file not found. Please run 'train_model.py' first.")
 
@@ -36,44 +33,43 @@ else:
 
 @app.get("/")
 def home_page():
-    return {"message": "Welcome to the Mumbai Property Price Estimator API"}
+    return {"message": "Welcome to the Mumbai Property Price Estimator API (v2.0)"}
 
 @app.post("/predict")
 def calculate_property_price(property: PropertyDetails):
     """
-    Predicts the price of a property based on its Location and Area.
+    Predicts the price of a property using a trained Linear Regression model.
     """
-    
-    #Get the requested locality
-    requested_locality = property.locality_name
-    
-    #Find the price per sqft for this locality in our database
-    price_per_sqft = 0.0
-    
-    # Try exact match
-    if requested_locality in locality_average_prices:
-        price_per_sqft = locality_average_prices[requested_locality]
-    else:
-        # Try case-insensitive match (e.g. "andheri" matches "Andheri")
-        found = False
-        for known_locality in locality_average_prices:
-            if known_locality.lower() == requested_locality.lower():
-                price_per_sqft = locality_average_prices[known_locality]
-                found = True
-                break
-        
-        if not found:
-            raise HTTPException(status_code=404, detail=f"Locality '{requested_locality}' not found in our database.")
+    if model is None:
+        raise HTTPException(status_code=500, detail="Model not loaded. Please contact administrator.")
 
-    #Calculate Total Price = Rate * Area
-    total_estimated_price = price_per_sqft * property.area_in_sqft
+    # 1. Preprocess Input
+    # Normalize locality to match training data (lowercase)
+    cleaned_locality = property.locality.strip().lower()
     
-    #Return the result
+    # Create a DataFrame for the model (Pipeline expects a DataFrame with 'Locality' column)
+    input_data = pd.DataFrame({'Locality': [cleaned_locality]})
+    
+    # 2. Predict Price per Sqft
+    try:
+        predicted_price_per_sqft = model.predict(input_data)[0]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
+        
+    # Handle negative predictions (unlikely but possible with linear regression)
+    if predicted_price_per_sqft < 0:
+        predicted_price_per_sqft = 0.0
+
+    # 3. Calculate Total Price
+    total_estimated_price = predicted_price_per_sqft * property.area_sqft
+    
+    # 4. Return Result
     return {
         "predicted_price": round(total_estimated_price, 2),
         "currency": "INR",
-        "price_per_sqft_used": round(price_per_sqft, 2),
-        "note": "Price estimated using average rates for this locality."
+        "price_per_sqft_used": round(predicted_price_per_sqft, 2),
+        "locality_used": cleaned_locality,
+        "note": "Price predicted using Linear Regression model on recent market trends."
     }
 
 if __name__ == "__main__":
